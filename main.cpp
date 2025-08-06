@@ -6,6 +6,14 @@
 
 using namespace std;
 
+namespace _array
+{
+	void main()
+	{
+		cout << boolalpha << is_same_v<int[1], int[2]> << endl; // 数组是类型, 包含大小
+	}
+}
+
 namespace _lambda
 {
 	int g = 1;
@@ -88,6 +96,7 @@ namespace user_defined_literals
 
 namespace member_pointer
 {
+	void test();
 	struct X
 	{
 		int i = 0;
@@ -114,6 +123,9 @@ namespace member_pointer
 		x.print();
 		invoke(&X::i, x) = 7;
 		x.print();
+
+		cout << "test: " << endl;
+		test();
 	}
 
 	void test()
@@ -159,6 +171,7 @@ namespace default_parameter
 	struct B
 	{
 		virtual void f(int a = 666) { cout << "B: " << a << endl; }
+		// virtual 提供运行时多态, 实现函数覆写
 	};
 	struct D : B
 	{
@@ -177,8 +190,10 @@ namespace default_parameter
 
 	void main()
 	{
-		/*unique_ptr<B> p = make_unique<D>();
-		p->f();*/
+		unique_ptr<B> p = make_unique<D>();
+		p->f();
+		// 默认参数: 编译时静态绑定, 由于p是B*类型, 默认参数来自 B:f()
+		// 调用函数: 运行时动态绑定, 由于p实际指向的对象是D, 故调用 D:f()
 
 		X x;
 		x.f();
@@ -186,7 +201,58 @@ namespace default_parameter
 
 };
 
+namespace _forward
+{
+	template <class _Ty>
+	constexpr _Ty&& _forward_(remove_reference_t<_Ty>& _Arg) noexcept
+		// 首先必须是 & _Arg, 防止拷贝
+		// 其次用 remove_reference_t 人为的实现引用折叠, 因为引用折叠只在类型推导时触发 (如万能引用, using)
+		// _Arg 的类型 remove_reference_t<_Ty>& 最终确定的过程不是类型推导
+		// 类型推导发生在模板参数 _Ty 上，_Arg 的类型是依赖于 _Ty 推导结果的产物
+	{
+		return static_cast<_Ty&&>(_Arg); // 引用折叠
+	}
+
+	void f(const string& s) { cout << "f左值: " << s << endl; }
+	void f(string&& s) { cout << "f右值: " << s << endl; }
+	template<typename T>
+	void g(T&& arg) // 万能引用, 引用折叠
+	{
+		//f(arg); // 永远是 f左值
+		f(forward<T>(arg));
+		// 完美转发: 在转发参数的同时，保留其原始的左值/右值这样的值类别(value category)属性
+		// 没有完美转发:
+		// 使用 T 导致不必要的拷贝, 使用 T& 又无法接受右值
+		// 唯一的方法是为左值右值设计两个函数, 对于右值仍然只能用 const& 来捕获
+	}
+	void main(void)
+	{
+		string&& s("Hello");
+		f(s); // 调用 f左值, 具名的右值引用本身是一个左值
+		f(dynamic_cast<string&&>(s)); // 调用 f右值  ps: dynamic_cast 除了多态类, 还可以从左值到右值引用
+		
+		// 用 g() 来将参数转发到正确的那一个 f()
+		g(s);
+		g(move(s));
+	}
+}
+
+namespace _auto
+{
+	void main()
+	{
+		int a = 1;
+		auto&& b = ref(a).get();
+		b++;
+		cout << a << endl;
+		cout << b << endl;
+
+		int x = 0;
+		auto&& v = cref(x).get();
+	}
+}
+
 int main()
 {
-	_lambda::main();
+	_forward::main();
 }
