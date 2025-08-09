@@ -3,14 +3,75 @@
 #include <vector>
 #include <functional>
 #include <chrono>
+#include <array>
 
 using namespace std;
 
+namespace _decltype
+{
+	int x = 1;
+	int a[1] = { 1 };
+	// 单纯的标识符:
+	using T1 = decltype(x); // T
+	// 非单纯的标识符:
+	// prv -> T
+	using T2 = decltype(1); 
+	using T8 = decltype(&x); 
+	using T7 = decltype(string("***")); 
+	// lv -> T&
+	using T5 = decltype(("***")); 
+	using T3 = decltype(a[0]); 
+	using T4 = decltype((x)); 
+	// xv -> T&&
+	using T6 = decltype(move(x)); 
+}
+
 namespace _array
 {
+	struct FArray
+	{
+		~FArray() = default;
+		int size;
+		char data[]; 
+		// 柔性数组, 该字段数据和 struct 头部数据在内存上紧密排列
+		// 而不是像 vector 一样数据与对象本身的内存分离
+	};
 	void main()
 	{
+		int a[5]{ 1 }; // 只初始化第一个元素为1, 其他为0
+		cout << a[1] << endl;
+
 		cout << boolalpha << is_same_v<int[1], int[2]> << endl; // 数组是类型, 包含大小
+		// 只在传参, 表达式(除了sizeof, &)中退化为指针
+
+		// 指向整个数组的指针（类型为 int (*)[5]），而不是指向首元素的指针 int*
+		auto p1 = &a; 
+		// int*
+		auto p0 = a;
+		auto p2 = &a[0];
+		auto p3 = a + 1;
+
+		int n = 10;
+		{
+			cout << "malloc:" << endl;
+			auto p = (FArray*)malloc(sizeof(FArray) + n * sizeof(char));
+			p->size = n;
+			strcpy_s(p->data, 10, "123456789");
+			cout << p->data << endl;
+			free(p); 
+			// 因为 FArray 是 Plain Old Data(POD) 类型, 所以可以使用简单的 malloc / free
+		}
+		{
+			cout << "new:" << endl;
+			void* mem = ::operator new(sizeof(FArray) + n * sizeof(char)); // 分配原始内存，不调用构造函数。
+			auto* p = new (mem) FArray; // 使用定位 new 在已分配的内存 mem 上构造 FArray 对象, 不进行内存分配
+			p->size = n;
+			strcpy_s(p->data, 10, "123456789");
+			cout << p->data << endl;
+			p->~FArray(); // 如果 FArray 包含需要清理的资源, 则必须手动调用析构函数
+			::operator delete(mem); // 释放原始内存
+		}
+		
 	}
 }
 
@@ -202,15 +263,33 @@ namespace default_parameter
 };
 
 namespace _forward
+	// 完美转发: 在转发参数的同时，保留并传递值类别
+	// 核心:
+	// 1.万能引用和模板类型推导: 保留值类别, 将左值捕获为左值引用, T推导为U&，将右值捕获为右值引用, T推导为值类型U
+	// 2.forward 的有条件转发: 传递值类别, 只将右值引用转为右值, 否则转为左值 (move 无条件转发为右值)
+	// 解决痛点: 既用引用/移动代替拷贝, 又用一个函数代替多个重载
+	// 使用 T 导致不必要的拷贝, 使用 T& 又无法接受右值
+	// C++11前, 唯一的方法是为左值右值设计两个函数, 对于右值仍然只能用 const& 来捕获
+	// C++11后(不用完美转发的情况下), 可以右值引用捕获右值, 再move触发移动, 但是仍然需要管理多个函数
 {
-	template <class _Ty>
-	constexpr _Ty&& _forward_(remove_reference_t<_Ty>& _Arg) noexcept
-		// 首先必须是 & _Arg, 防止拷贝
-		// 其次用 remove_reference_t 人为的实现引用折叠, 因为引用折叠只在类型推导时触发 (如万能引用, using)
-		// _Arg 的类型 remove_reference_t<_Ty>& 最终确定的过程不是类型推导
-		// 类型推导发生在模板参数 _Ty 上，_Arg 的类型是依赖于 _Ty 推导结果的产物
+	template <class T>
+	constexpr T&& __forward(remove_reference_t<T>& arg) noexcept
+		// 首先必须是 & arg, 防止拷贝
+		// 其次用 remove_reference_t 来制造一个非推导上下文
+		// 防止编译器通过参数来自动推导T, 这在完美转发中是不应该被允许的, 因为此时参数已经丢失了值类别
+		// 于是强制用户在调用 forward 时通过 <> 来指明模板参数 T, 以顺利传递值类别这一信息
+		// 虽然去掉 remove_reference 也可以手动使用 <>, 但是这不是强制的, 容易忘记
+		// 且当期望转发的类型与参数的类型发生冲突时 (如参数为右值引用, 但是T为左值引用) 会报错
 	{
-		return static_cast<_Ty&&>(_Arg); // 引用折叠
+		return static_cast<T&&>(arg); // 引用折叠
+		// 根据最初的模板参数 T，而不是 arg 本身的值类别，来决定转换的类型
+	}
+
+	template <class T>
+	constexpr T&& __forward(remove_reference_t<T>&& _Arg) noexcept // forward 对于右值参数的重载
+	{
+		cout << "r forward" << endl;
+		return static_cast<T&&>(_Arg);
 	}
 
 	void f(const string& s) { cout << "f左值: " << s << endl; }
@@ -218,22 +297,20 @@ namespace _forward
 	template<typename T>
 	void g(T&& arg) // 万能引用, 引用折叠
 	{
-		//f(arg); // 永远是 f左值
-		f(forward<T>(arg));
-		// 完美转发: 在转发参数的同时，保留其原始的左值/右值这样的值类别(value category)属性
-		// 没有完美转发:
-		// 使用 T 导致不必要的拷贝, 使用 T& 又无法接受右值
-		// 唯一的方法是为左值右值设计两个函数, 对于右值仍然只能用 const& 来捕获
+		//f(arg); 
+		// ERROR: 永远是 f左值, 因为具名的右值引用本身是一个左值
+		// 重载决议同时考虑了参数的类型(右值引用)和值类别(左值), 值类别优先级更高
+		f(__forward<T>(arg)); // 将参数转发到正确的那一个 f()
 	}
-	void main(void)
+
+	void main()
 	{
-		string&& s("Hello");
-		f(s); // 调用 f左值, 具名的右值引用本身是一个左值
-		f(dynamic_cast<string&&>(s)); // 调用 f右值  ps: dynamic_cast 除了多态类, 还可以从左值到右值引用
-		
-		// 用 g() 来将参数转发到正确的那一个 f()
+		string s("Hello");
 		g(s);
 		g(move(s));
+
+		string&& ss = move(s);
+		__forward<string&&>(ss);
 	}
 }
 
@@ -252,7 +329,15 @@ namespace _auto
 	}
 }
 
+namespace test
+{
+	void main()
+	{
+		
+	}
+}
+
 int main()
 {
-	_forward::main();
+	_array::main();
 }
