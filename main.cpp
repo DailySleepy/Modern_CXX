@@ -9,21 +9,39 @@ using namespace std;
 
 namespace _decltype
 {
-	int x = 1;
-	int a[1] = { 1 };
-	// 单纯的标识符:
-	using T1 = decltype(x); // T
-	// 非单纯的标识符:
-	// prv -> T
-	using T2 = decltype(1); 
-	using T8 = decltype(&x); 
-	using T7 = decltype(string("***")); 
-	// lv -> T&
-	using T5 = decltype(("***")); 
-	using T3 = decltype(a[0]); 
-	using T4 = decltype((x)); 
-	// xv -> T&&
-	using T6 = decltype(move(x)); 
+	const int&& g() { return 0; }
+	decltype(auto) f() { return g(); }
+
+	void main()
+	{
+		int x = 1;
+		int a[1] = { 1 };
+		// 单纯的标识符:
+		using T1 = decltype(x); // T
+		// 非单纯的标识符:
+		// prv -> T
+		using T2 = decltype(1);
+		using T8 = decltype(&x);
+		using T7 = decltype(string("***"));
+		// lv -> T&
+		using T5 = decltype(("***"));
+		using T3 = decltype(a[0]);
+		using T4 = decltype((x));
+		// xv -> T&&
+		using T6 = decltype(move(x));
+
+		// decltype(auto) 完全保留类型
+		decltype(auto) v = f();
+		auto vv = f();
+		decltype(auto) a = "abc";
+		auto aa = "abc";
+
+		//decltype(auto) shaders = { "basic.vert", "pbr.vert" };
+		// ERROR: 大括号列表本身没有一个可以被 decltype 推导的独立类型
+		auto shaders = { "basic.vert", "pbr.vert" };
+		const char* shaders[] = { "basic.vert", "pbr.vert" };
+		array shaders = { "basic.vert", "pbr.vert" };
+	}
 }
 
 namespace _array
@@ -32,7 +50,7 @@ namespace _array
 	{
 		~FArray() = default;
 		int size;
-		char data[]; 
+		char data[];
 		// 柔性数组, 该字段数据和 struct 头部数据在内存上紧密排列
 		// 而不是像 vector 一样数据与对象本身的内存分离
 	};
@@ -45,7 +63,7 @@ namespace _array
 		// 只在传参, 表达式(除了sizeof, &)中退化为指针
 
 		// 指向整个数组的指针（类型为 int (*)[5]），而不是指向首元素的指针 int*
-		auto p1 = &a; 
+		auto p1 = &a;
 		// int*
 		auto p0 = a;
 		auto p2 = &a[0];
@@ -58,7 +76,7 @@ namespace _array
 			p->size = n;
 			strcpy_s(p->data, 10, "123456789");
 			cout << p->data << endl;
-			free(p); 
+			free(p);
 			// 因为 FArray 是 Plain Old Data(POD) 类型, 所以可以使用简单的 malloc / free
 		}
 		{
@@ -71,7 +89,7 @@ namespace _array
 			p->~FArray(); // 如果 FArray 包含需要清理的资源, 则必须手动调用析构函数
 			::operator delete(mem); // 释放原始内存
 		}
-		
+
 	}
 }
 
@@ -314,26 +332,11 @@ namespace _forward
 	}
 }
 
-namespace _auto
-{
-	void main()
-	{
-		int a = 1;
-		auto&& b = ref(a).get();
-		b++;
-		cout << a << endl;
-		cout << b << endl;
-
-		int x = 0;
-		auto&& v = cref(x).get();
-	}
-}
-
 namespace test
 {
 	void main()
 	{
-		
+
 	}
 }
 
