@@ -9,9 +9,6 @@ using namespace std;
 
 namespace _decltype
 {
-	const int&& g() { return 0; }
-	decltype(auto) f() { return g(); }
-
 	void main()
 	{
 		int x = 1;
@@ -31,16 +28,18 @@ namespace _decltype
 		using T6 = decltype(move(x));
 
 		// decltype(auto) 完全保留类型
+		auto g = [] -> const int&& { return 0; };
+		auto f = [&] -> decltype(auto) { return g(); };
 		decltype(auto) v = f();
 		auto vv = f();
-		decltype(auto) a = "abc";
-		auto aa = "abc";
+		decltype(auto) s = "abc";
+		auto ss = "abc";
 
 		//decltype(auto) shaders = { "basic.vert", "pbr.vert" };
 		// ERROR: 大括号列表本身没有一个可以被 decltype 推导的独立类型
-		auto shaders = { "basic.vert", "pbr.vert" };
-		const char* shaders[] = { "basic.vert", "pbr.vert" };
-		array shaders = { "basic.vert", "pbr.vert" };
+		auto shaders1 = { "basic.vert", "pbr.vert" };
+		const char* shaders2[] = { "basic.vert", "pbr.vert" };
+		array shaders3 = { "basic.vert", "pbr.vert" };
 	}
 }
 
@@ -332,15 +331,123 @@ namespace _forward
 	}
 }
 
-namespace test
+namespace _type_traits
 {
+	// 1.如何判断类型特征
+	template<typename T>
+	struct is_int_strict : false_type {};
+	template<>
+	struct is_int_strict<int> : true_type {};
+	template<typename T>
+	struct is_int : is_int_strict<remove_cv_t<remove_reference_t<T>>> {};
+	// 先移除引用, 再移除 cv: 是 & 修饰 const, 而不是 const 修饰 &
+	// 也可以直接用 remove_cvref_t
+	template<typename T>
+	constexpr bool my_is_int_v{ is_int<T>::value };
+
+	// 2.使用类型特征来选择函数模板
+	class IMeasurable
+	{
+	public:
+		virtual double length() const = 0;
+	};
+	class Vec : public IMeasurable
+	{
+	public:
+		int x, y;
+		Vec(int x, int y) : x(x), y(y) {}
+		double length() const { return sqrt(x * x + y * y); }
+	};
+	template<typename T>
+	double length(T&& t)
+	{
+		if constexpr (is_arithmetic_v<T>)
+			return abs(t);
+		else if constexpr (is_base_of_v<IMeasurable, remove_reference_t<T>>)
+			// 引用类型不参与 is_base_of 判断，所以先移除引用
+			return t.length();
+		return 0;
+	}
+
 	void main()
 	{
+		cout << boolalpha << my_is_int_v<const int&> << endl;
 
+		cout << length(2) << endl;
+		cout << length(Vec(3, 4)) << endl;
+		const auto v = Vec(3, 4);
+		cout << length(v) << endl;
 	}
+}
+
+namespace SFINAE
+{
+	namespace test1
+	{
+		class SomeObj1
+		{
+		public:
+			void Dump2File() const
+			{
+				std::cout << "dump this object to file" << std::endl;
+			}
+		};
+		class SomeObj2 {};
+
+		template<class T>
+		auto DumpObj(const T& t) -> decltype(t.Dump2File())
+			// 使用 decltype 来触发 SFINAE
+			// 如果 T 没有该成员，则表达式无效，decltype 无法推导类型, 忽略该模板
+		{
+			t.Dump2File();
+		}
+		void DumpObj(...)
+		{
+			std::cout << "the object must have a member function Dump2File" << std::endl;
+		}
+		void main()
+		{
+			SomeObj1 obj1;
+			DumpObj(obj1);
+			SomeObj2 obj2;
+			DumpObj(obj2);
+		}
+	}
+
+	namespace test2
+	{
+		template<typename, typename = void>
+		struct has_type_member : std::false_type {};
+
+		template<typename T>
+		struct has_type_member<T, std::void_t<typename T::type>> : std::true_type {};
+		// 用 void_t 来将任意类型实例化为 void, 如果实例化失败, 触发 SFINAE
+
+		struct A { using type = int; };
+		struct B {};
+
+		void main()
+		{
+			std::cout << boolalpha << has_type_member<A>::value << std::endl; // 输出 1
+			std::cout << boolalpha << has_type_member<B>::value << std::endl; // 输出 0
+		}
+	}
+
+	void main()
+	{
+		cout << "test1:" << endl;
+		test1::main();
+		cout << "test2:" << endl;
+		test2::main();
+	}
+}
+
+namespace test
+{
+
 }
 
 int main()
 {
-	_array::main();
+	SFINAE::main();
 }
