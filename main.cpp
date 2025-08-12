@@ -2,8 +2,11 @@
 #include <iostream>
 #include <vector>
 #include <functional>
+#include <numeric>
 #include <chrono>
 #include <array>
+#include <ranges>
+#include <algorithm>
 
 using namespace std;
 
@@ -331,7 +334,7 @@ namespace _forward
 	}
 }
 
-namespace _type_traits
+namespace type_traits
 {
 	// 1.如何判断类型特征
 	template<typename T>
@@ -442,12 +445,65 @@ namespace SFINAE
 	}
 }
 
-namespace test
+namespace CRTP
+{
+	template<typename T>
+	struct Logger
+	{
+		void printLog(const std::string& message)
+		{
+			std::cout << "[ID:" << static_cast<T*>(this)->getID() << "] ";
+			static_cast<T*>(this)->logMessage(message);
+		}
+	};
+
+	// 继承以自己为模板参数的基类, 获得通用的方法 printLog
+	struct Player : Logger<Player>
+	{
+		int getID() const { return 101; }
+		void logMessage(const std::string& message)
+		{
+			std::cout << "Player: " << message << std::endl;
+		}
+	};
+	struct Enemy : Logger<Enemy>
+	{
+		int getID() const { return 202; }
+		void logMessage(const std::string& message)
+		{
+			std::cout << "Enemy: " << message << std::endl;
+		}
+	};
+
+	void main()
+	{
+		Player player;
+		Enemy enemy;
+
+		player.printLog("spawned");
+		enemy.printLog("defeated");
+
+		// vector<unique_ptr<Logger<Player>>> entities;
+		// vector<unique_ptr<Logger<Enemy>>>  entities;
+		// 代价是无法将二者放在同一个容器中, 因为 Logger<Player> 和 Logger<Enemy> 是不同类型
+		// 解决方法是再让 Logger 继承自 ILoggerBase, 虽然又引入了虚函数 virtual printLog, 但是减少了虚函数的调用次数
+		// 传统虚函数接口: getID + logMessage 两次虚函数 --> CRTP: printLog 一次虚函数 + (getID + logMessage) 两次静态调用
+	}
+}
+
+namespace _concept
 {
 
 }
 
+namespace test
+{
+	void main()
+	{
+	}
+}
+
 int main()
 {
-	SFINAE::main();
+	CRTP::main();
 }
