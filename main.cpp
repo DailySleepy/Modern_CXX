@@ -493,7 +493,53 @@ namespace CRTP
 
 namespace _concept
 {
+	template<typename T>
+	concept AddAble = // 用 requires 来声明 Concept
+		requires(T a) // requires 就是返回值为 bool 的常量表达式
+	{
+		{ a + a } -> same_as<T>;
+		requires is_arithmetic_v<T>; // 嵌套使用
+	};
 
+	template<typename T>
+	concept Divisible = // 直接用布尔常量表达式来声明 Concept
+		is_arithmetic_v<T>;
+
+	template<typename T>
+	auto add1(T a, T b) requires AddAble<T>;
+
+	template<AddAble T> // 适用于一个 Concept 的简单约束
+	auto add2(T a, T b);
+
+	template<typename T>
+		requires requires(T a, T b) { { a + b } -> same_as<T>; } // 使用匿名 requires
+	auto add3(T a, T b);
+
+	// 省略 template<typename T, typename U> 也可以使用不同类型的参数
+	auto add4(AddAble auto a, AddAble auto b); // 当 Concept 只需要一个参数时, 可以直接限制 auto
+
+	template<typename T>
+	auto mean(T a, T b) requires AddAble<T>&& Divisible<T>; // 使用多个 Concept
+
+	template<typename T> // Concept 用于类模板
+		requires integral<T>&& AddAble<T>
+	struct Pair
+	{
+		T a, b;
+		Pair(T a, T b) : a(a), b(b) {};
+	};
+
+	template<integral auto N> // Concept 用于 NTTP（非类型模板参数）
+	struct Array
+	{
+		int arr[N];
+	};
+
+	void main()
+	{
+		Pair p(1, 2);
+		Array<3> a;
+	}
 }
 
 namespace test
@@ -505,5 +551,5 @@ namespace test
 
 int main()
 {
-	CRTP::main();
+	_concept::main();
 }
