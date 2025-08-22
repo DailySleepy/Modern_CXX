@@ -1,4 +1,3 @@
-#include <string>
 #include <iostream>
 #include <vector>
 #include <functional>
@@ -7,6 +6,8 @@
 #include <array>
 #include <ranges>
 #include <algorithm>
+#include <string>
+//import std;
 
 using namespace std;
 
@@ -63,6 +64,15 @@ namespace _array
 
 		cout << boolalpha << is_same_v<int[1], int[2]> << endl; // 数组是类型, 包含大小
 		// 只在传参, 表达式(除了sizeof, &)中退化为指针
+
+		// vector<int[2]> v;
+		// v.push_back({ 1, 2 }); 
+		// ERROR: 容器元素需要可移动可拷贝, 而原始数组不可以
+
+		vector<array<int, 2>> v;
+		v.push_back({ 1, 2 });
+		// v.emplace_back(1, 2);
+		// ERROR: emplace 依赖于构造函数, 我们期望的其实是聚合初始化{}, 这不依赖于构造函数
 
 		// 指向整个数组的指针（类型为 int (*)[5]），而不是指向首元素的指针 int*
 		auto p1 = &a;
@@ -143,15 +153,26 @@ namespace _lambda
 }
 
 namespace _noexcept
+	// 如果一个 noexcept 函数抛出异常，程序会立即调用 std::terminate() 并强制终止
 {
-	void f() noexcept
+	void f() noexcept // 普通函数默认是 has except 的, noexcept 显式指明不会出错
 	{
 		cout << "f is called" << endl;
 	}
 
+	struct C
+	{
+		int* p = nullptr;
+		C() : p(new int(1)) {}
+		~C() { if (p) delete p; }
+		// 析构函数默认是 noexcept 的, 除非 noexcept(false)
+	};
+
 	void main()
 	{
-		cout << boolalpha << noexcept(f()) << endl;
+		// noexcept 不求值, 不会调用函数
+		cout << boolalpha << noexcept(f()) << endl; // true
+		C c; cout << boolalpha << noexcept(c.~C()) << endl; // true
 	}
 }
 
@@ -282,6 +303,30 @@ namespace default_parameter
 
 };
 
+namespace _move
+{
+	struct X
+	{
+		X() {}
+		X(const X& o) {};
+		X(X&& o) {};
+	};
+	X f()
+	{
+		X x;
+		return x; // NRVO 或 移动语义
+		// 虽然x是左值, 但是编译器知道x即将销毁, 所以还是将x认为是隐式可移动对象, 自动触发移动语义
+		// 不应该使用 move(x), 这会破坏 NRVO
+	}
+	struct Y
+	{
+		X x;
+		X get() { return move(x); }
+		// 这里的x是一个左值, 且不会立即销毁, 所以不是一个隐式可移动对象, 需要手动 move 来触发移动语义
+	};
+
+}
+
 namespace _forward
 	// 完美转发: 在转发参数的同时，保留并传递值类别
 	// 核心:
@@ -290,7 +335,7 @@ namespace _forward
 	// 解决痛点: 既用引用/移动代替拷贝, 又用一个函数代替多个重载
 	// 使用 T 导致不必要的拷贝, 使用 T& 又无法接受右值
 	// C++11前, 唯一的方法是为左值右值设计两个函数, 对于右值仍然只能用 const& 来捕获
-	// C++11后(不用完美转发的情况下), 可以右值引用捕获右值, 再move触发移动, 但是仍然需要管理多个函数
+	// C++11后(不用完美转发的情况下), 可以右值引用捕获右值, 再 move 触发移动, 但是仍然需要管理多个函数
 {
 	template <class T>
 	constexpr T&& __forward(remove_reference_t<T>& arg) noexcept
@@ -431,8 +476,8 @@ namespace SFINAE
 
 		void main()
 		{
-			std::cout << boolalpha << has_type_member<A>::value << std::endl; // 输出 1
-			std::cout << boolalpha << has_type_member<B>::value << std::endl; // 输出 0
+			std::cout << boolalpha << has_type_member<A>::value << std::endl;
+			std::cout << boolalpha << has_type_member<B>::value << std::endl;
 		}
 	}
 
@@ -542,6 +587,30 @@ namespace _concept
 	}
 }
 
+import MyModule;
+namespace _module
+{
+	void main()
+	{
+		cout << moduleVariable << endl;
+		ModuleClass mc;
+		ModuleFunc();
+		SubModuleFunc();
+		OtherModuleFunc();
+	}
+}
+
+namespace range
+{
+	void main()
+	{
+		struct Person { std::string name; int age; };
+		vector<Person> people = { {"Alice", 30}, {"Bob", 25}, {"Charlie", 28} };
+		ranges::sort(people, less{}, &Person::age);
+		cout << "ranges" << endl;
+	}
+}
+
 namespace test
 {
 	void main()
@@ -551,5 +620,5 @@ namespace test
 
 int main()
 {
-	_concept::main();
+	_noexcept::main();
 }
