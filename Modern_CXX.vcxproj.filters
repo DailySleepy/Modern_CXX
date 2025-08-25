@@ -1,0 +1,20 @@
+﻿<?xml version="1.0" encoding="utf-8"?>
+<Project ToolsVersion="4.0" xmlns="http://schemas.microsoft.com/developer/msbuild/2003">
+  <ItemGroup>
+    <ClCompile Include="main.cpp" />
+    <ClCompile Include="module\MyModule.ixx">
+      <Filter>module</Filter>
+    </ClCompile>
+    <ClCompile Include="module\OtherModule.ixx">
+      <Filter>module</Filter>
+    </ClCompile>
+    <ClCompile Include="module\SubModule.ixx">
+      <Filter>module</Filter>
+    </ClCompile>
+  </ItemGroup>
+  <ItemGroup>
+    <Filter Include="module">
+      <UniqueIdentifier>{ecdf82ee-571b-4a8f-9ecd-98193a3e6d3a}</UniqueIdentifier>
+    </Filter>
+  </ItemGroup>
+</Project>
