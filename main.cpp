@@ -105,53 +105,6 @@ namespace _array
 	}
 }
 
-namespace _lambda
-{
-	int g = 1;
-	void main()
-	{
-		struct X : decltype([] { cout << "666" << endl; }) { }; // lambda 是一个类 (函数对象)
-		X x;
-		x();
-
-		//auto l1 = [num = 1]() { num++; }; // ERROR: lambda::operator() 默认是 const 函数
-		auto l1 = [num = 1] mutable { num++; };
-
-		int val = 0;
-		auto l2 = [&val]() { val++; }; // const 函数中可以修改引用的参数
-
-		void (*p1)() = []() {}; // 无捕获时, lambda 可以被视为匿名函数
-		auto p4 = +[] {}; // '+' 帮助将 lambda 转换为函数指针, 否则视为类 (输出大小为1)
-		cout << sizeof(p1) << " " << sizeof(p4) << endl;
-
-		auto p2 = [](auto n) { return n + 1; };
-		auto p3 = []<typename T>(T n) { return n + 1; };
-		cout << p2(1) << " " << p3("abc") << endl;
-		// auto g1 = [](auto a) { &y; };
-		// ERROR: 虽然出现了未捕获的ODR-use, 
-		// 但是由于模板的两阶段检查导致在此时不会检查出这一错误, 直到模板被实例化
-
-		const int a = 1;
-		constexpr int b = 1;
-		static int c = 1;
-		int d = 1;
-		//const float f = 1; // ERROR: const float 不能被视为 constexpr
-		constexpr float f = 1;
-		auto p5 = []()
-		{
-			a; b; f; // 编译期已知, 可以直接替换, 不是 ODR-use
-			//d; &a; &b; // ERROR: ODR-use 参数必须被捕获以保持 lambda 的闭包性
-			c; &c; g; &g; // lambda 可以直接访问"全局变量"和"封闭作用域中的局部静态变量"
-		};
-
-		const int y = 1;
-		auto g1 = [] { y; };
-		auto g2 = [=] { y; }; // 求值表达式, 可能是ODR-use, 加上显示指明捕获, 故捕获
-		auto g3 = [=] { sizeof y; }; // 不求值表达式, 不可能是ODR-use, 故不捕获
-		cout << sizeof g1 << " " << sizeof g2 << " " << sizeof g3 << '\n'; // 1, 4, 1
-	}
-}
-
 namespace _noexcept
 	// 不抛异常保证 
 	// 如果一个 noexcept 函数抛出异常，程序会立即调用 std::terminate() 并强制终止
@@ -210,9 +163,10 @@ namespace _noexcept
 
 namespace user_defined_literals
 {
+	// operator""_后缀名
 	auto operator""_km(long double d)
+		// 浮点数只接受 long double, 防止重载 (避免复杂的重载决议)
 	{
-		using namespace std::chrono_literals;
 		return d * 1000;
 	}
 
@@ -228,9 +182,86 @@ namespace user_defined_literals
 	}
 }
 
-namespace member_pointer
+namespace _lambda
 {
-	void test();
+	int g = 1;
+	void main()
+	{
+		struct X : decltype([] { cout << "666" << endl; }) { }; // lambda 是一个类 (函数对象)
+		X x;
+		x();
+
+		//auto l1 = [num = 1]() { num++; }; // ERROR: lambda::operator() 默认是 const 函数
+		auto l1 = [num = 1] mutable { num++; };
+
+		int val = 0;
+		auto l2 = [&val]() { val++; }; // const 函数中可以修改引用的参数
+
+		void (*p1)() = []() {}; // 无捕获时, lambda 可以被视为匿名函数
+		auto p4 = +[] {}; // '+' 帮助将 lambda 转换为函数指针, 否则视为类 (输出大小为1)
+		cout << sizeof(p1) << " " << sizeof(p4) << endl;
+
+		auto p2 = [](auto n) { return n + 1; };
+		auto p3 = []<typename T>(T n) { return n + 1; };
+		cout << p2(1) << " " << p3("abc") << endl;
+		// auto g1 = [](auto a) { &y; };
+		// ERROR: 虽然出现了未捕获的ODR-use, 
+		// 但是由于模板的两阶段检查导致在此时不会检查出这一错误, 直到模板被实例化
+
+		const int a = 1;
+		constexpr int b = 1;
+		static int c = 1;
+		int d = 1;
+		//const float f = 1; // ERROR: const float 不能被视为 constexpr
+		constexpr float f = 1;
+		auto p5 = []()
+		{
+			a; b; f; // 编译期已知, 可以直接替换, 不是 ODR-use
+			//d; &a; &b; // ERROR: ODR-use 参数必须被捕获以保持 lambda 的闭包性
+			c; &c; g; &g; // lambda 可以直接访问"全局变量"和"封闭作用域中的局部静态变量"
+		};
+
+		const int y = 1;
+		auto g1 = [] { y; };
+		auto g2 = [=] { y; }; // 求值表达式, 可能是ODR-use, 加上显示指明捕获, 故捕获
+		auto g3 = [=] { sizeof y; }; // 不求值表达式, 不可能是ODR-use, 故不捕获
+		cout << sizeof g1 << " " << sizeof g2 << " " << sizeof g3 << '\n'; // 1, 4, 1
+	}
+}
+
+namespace _bind
+{
+	using namespace placeholders;
+
+	int add(int a, int b) { return a + b; }
+
+	struct Printer
+	{
+		void print(const string& s) { cout << s << endl; }
+	};
+
+	void main()
+	{
+		// 绑定普通函数
+		auto add10 = bind(add, _1, 10); // _1 是占位符, 表示新函数调用时传入的第一个参数
+		cout << add10(1) << endl;
+
+		// 绑定成员函数
+		Printer obj;
+		auto printHello = bind(&Printer::print, &obj, "Hello");
+		printHello();
+
+		// 但是 lambda 是实现上述功能更好的选择
+		auto add10_lambda = [](int i) { return add(i, 1); };
+		auto printHello_lambda = [&obj]() { obj.print("Hello"); };
+		// lambda 语法更清晰
+		// 此外, bind 的返回值是非常复杂的"未命名函数对象", 难以像 lambda 一样直接内联
+	}
+}
+
+namespace member_pointer
+	// 类的非静态成员在类定义中的偏移量, 依赖于具体的类对象
+{
 	struct X
 	{
 		int i = 0;
@@ -257,15 +288,17 @@ namespace member_pointer
 		x.print();
 		invoke(&X::i, x) = 7;
 		x.print();
-
-		cout << "test: " << endl;
-		test();
 	}
+};
 
-	void test()
+namespace _invoke
+{
+	void _invoke()
 	{
-		#define flag true
 
+	}
+	void compare_with_bind()
+	{
 		struct X
 		{
 			int i = 0;
@@ -275,18 +308,19 @@ namespace member_pointer
 
 		X x;
 		x.print();
-		if (!flag)
+		cout << "invoke:\n";
 		{
-			std::invoke(&X::inc, x);
+			invoke(&X::inc, x);
 			x.print();
-			std::invoke(&X::inc, &x);
+			invoke(&X::inc, &x);
 			x.print();
-			std::invoke(&X::inc, std::ref(x));
+			invoke(&X::inc, ref(x));
 			x.print();
 			// 0 1 2 3
-			//invoke立即调用, Arg&&通用引用, 所以x, &x, ref(x)的结果一样(对于数据成员指针和成员函数指针)
+			// invoke 是立即调用, Arg&&通用引用, 所以x, &x, ref(x)的结果一样
 		}
-		else
+		x.i = 0;
+		cout << "bind:\n";
 		{
 			auto b1 = bind(&X::inc, x); b1();
 			x.print();
@@ -295,10 +329,16 @@ namespace member_pointer
 			auto b3 = bind(&X::inc, ref(x)); b3();
 			x.print();
 			// 0 0 1 2
-			//bind将参数都存起来, 这要求使用decay_t来退化类型(与thread相同的要求), 所以传值x不会对i产生影响
+			// bind 是创建可调用对象, 延迟执行
+			// 将参数都存起来, 这要求使用decay_t来退化类型(与thread相同的要求), 所以传值x不会对i产生影响
 		}
 	}
-};
+	void main()
+	{
+		_invoke();
+		compare_with_bind();
+	}
+}
 
 namespace default_parameter
 {
@@ -641,27 +681,28 @@ namespace _range
 		float speed;
 		float distanceToBase;
 	};
-	vector<Enemy> getAllEnemies()
-	{
-		return {
-			{100, 15.0f, 50.0f},
-			{0, 20.0f, 10.0f},
-			{80, 5.0f, 30.0f},
-			{100, 12.0f, 80.0f},
-			{100, 18.0f, 60.0f},
-			{100, 22.0f, 20.0f},
-			{100, 11.0f, 45.0f},
-			{100, 25.0f, 75.0f}
-		};
-	}
+	vector<Enemy> enemies = {
+		{100, 15.0f, 50.0f},
+		{0, 20.0f, 10.0f},
+		{80, 5.0f, 30.0f},
+		{100, 12.0f, 80.0f},
+		{100, 18.0f, 60.0f},
+		{100, 22.0f, 20.0f},
+		{100, 11.0f, 45.0f},
+		{100, 25.0f, 75.0f}
+	};
 
-	void processEnemies()
+	void main()
 	{
-		auto distances = getAllEnemies()
+		auto distances = enemies
 			| views::filter([](const Enemy& e) { return e.health > 0 && e.speed > 10.0f; })
+			// 将元素传入lambda, 保留返回真值的元素
 			| views::take(5)
+			// 取前5个元素
 			| views::transform([](const Enemy& e) { return e.distanceToBase; })
+			// 对每一个元素进行操作, 生成一个新的元素序列, 可以转换为其他的类型, 这里是将Enemy序列转为float序列
 			| ranges::to<vector>();
+			// 从 view 类型转为 vector
 
 		ranges::sort(distances, greater<float>());
 
@@ -669,11 +710,6 @@ namespace _range
 		{
 			cout << "Distance: " << dist << endl;
 		});
-	}
-
-	void main()
-	{
-		processEnemies();
 	}
 }
 
@@ -686,5 +722,5 @@ namespace test
 
 int main()
 {
-	_range::main();
+	_invoke::main();
 }
