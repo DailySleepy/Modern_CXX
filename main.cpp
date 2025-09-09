@@ -118,7 +118,7 @@ namespace _noexcept
 	// 普通函数默认是 except 的, noexcept 显式指明不会出错
 	// noexcept(false) 显式指明可能出错, 可以防止编译器自动推导为 noexcept(true)
 	{
-		cout << "f is called" << endl;
+		cout << "print is called" << endl;
 	}
 
 	struct C
@@ -229,6 +229,77 @@ namespace _lambda
 	}
 }
 
+namespace member_pointer
+	// 类的非静态成员在类定义中的偏移量, 依赖于具体的类对象
+{
+	struct X
+	{
+		int i = 0;
+		void f(int a) { cout << "f is called by " << a << endl; }
+		void print() { cout << "i: " << i << endl; }
+	};
+
+	template<typename T, typename U>
+	void printMember(vector<T>& objs, U T::* member_var_ptr)
+	{
+		for (auto& obj : objs)
+			cout << obj.*member_var_ptr << " ";
+		cout << endl;
+	}
+	template<typename T, typename U>
+	void excuteAction(vector<T>& objs, U(T::* member_fun_ptr)(void))
+	{
+		for (auto& obj : objs)
+			(obj.*member_fun_ptr)();
+	}
+
+	void main()
+	{
+		X x;
+		// 1.成员变量指针
+		int X::* vp = &X::i;
+		x.*vp = 66;
+		x.print();
+		// 作为 invoke 参数调用
+		invoke(vp, x) = 6666; // invoke(vp, x) 内联为 x.*vp
+		x.print();
+
+		// 2.成员函数指针
+		void (X:: * fp)(int) = &X::f;
+		(x.*fp)(1);
+
+		// 和普通函数指针一样, 成员函数指针可以作为函数参数
+		// lambda 接受成员函数指针, 类实例, 成员函数参数, 这里类似 invoke
+		auto lambda = [](void(X::* fp)(int), X& x, int a) { (x.*fp)(a); };
+		lambda(fp, x, 2);
+		invoke(fp, x, 2);
+		cout << endl;
+
+		// 作用: 对一组对象的某个变量做批量操作
+		struct Person
+		{
+			string name;
+			int age;
+			Person(const string& n, int a) : name(n), age(a) {}
+			void jump() { cout << name << " is jumping\n"; }
+			void sing() { cout << name << " is singing\n"; }
+		};
+		vector<Person> people = {
+			{"Alice", 30},
+			{"Bob", 25},
+			{"Charlie", 35}
+		};
+		// 打印所有人的 name
+		printMember(people, &Person::name);
+		// 打印所有人的 age
+		printMember(people, &Person::age);
+		// 让所有人 jump
+		excuteAction(people, &Person::jump);
+		// 让所有人 sing
+		excuteAction(people, &Person::sing);
+	}
+};
+
 namespace _bind
 {
 	using namespace placeholders;
@@ -259,46 +330,42 @@ namespace _bind
 	}
 }
 
-namespace member_pointer
-	// 类的非静态成员在类定义中的偏移量, 依赖于具体的类对象
-{
-	struct X
-	{
-		int i = 0;
-		void f() { cout << "no para" << endl; }
-		void f(int a) { i = a; cout << "int para: " << a << endl; }
-		void print() { cout << "i: " << i << endl; }
-	};
-
-	void main()
-	{
-		X x;
-		void (X:: * fp)(int) = &X::f;
-		auto lambda = [](void(X::* fp)(int), X& x, int a) { (x.*fp)(a); };
-
-		(x.*fp)(1);
-		lambda(fp, x, 2);
-
-		auto b0 = bind(lambda, fp, ref(x), 3); b0();
-		auto b1 = bind(fp, ref(x), 4); b1();
-
-		invoke(lambda, fp, ref(x), 5);
-		invoke(fp, ref(x), 6);
-
-		x.print();
-		invoke(&X::i, x) = 7;
-		x.print();
-	}
-};
-
 namespace _invoke
 {
 	void _invoke()
 	{
+		auto print = [](string msg) { cout << msg << endl; };
+		struct F
+		{
+			void operator()(string msg) { cout << msg << endl; }
+		};
+		struct C
+		{
+			int v = 6;
+			void print(string msg) { cout << msg << endl; }
+		};
 
+		// 调用普通函数或lambda
+		invoke(print, "simple");
+
+		// 调用函数对象
+		F f;
+		invoke(f, "factor");
+
+		// 调用成员函数(通过值/引用/指针)
+		C o;
+		auto p = make_unique<C>();
+		invoke(&C::print, o, "member");
+		invoke(&C::print, &o, "ref");
+		invoke(&C::print, p, "ptr");
+
+		// 调用成员变量
+		cout << "v is " << invoke(&C::v, o) << endl;
 	}
+
 	void compare_with_bind()
 	{
+		cout << endl << "---compare_with_bind---" << endl;
 		struct X
 		{
 			int i = 0;
@@ -307,6 +374,7 @@ namespace _invoke
 		};
 
 		X x;
+		cout << "initial:\n";
 		x.print();
 		cout << "invoke:\n";
 		{
@@ -333,6 +401,7 @@ namespace _invoke
 			// 将参数都存起来, 这要求使用decay_t来退化类型(与thread相同的要求), 所以传值x不会对i产生影响
 		}
 	}
+
 	void main()
 	{
 		_invoke();
@@ -722,5 +791,5 @@ namespace test
 
 int main()
 {
-	_invoke::main();
+	member_pointer::main();
 }
