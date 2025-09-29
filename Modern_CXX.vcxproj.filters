@@ -16,5 +16,64 @@
     <Filter Include="module">
       <UniqueIdentifier>{ecdf82ee-571b-4a8f-9ecd-98193a3e6d3a}</UniqueIdentifier>
     </Filter>
+    <Filter Include="header">
+      <UniqueIdentifier>{8a8f2023-f977-47a8-b3b4-dd2c58c12446}</UniqueIdentifier>
+    </Filter>
+  </ItemGroup>
+  <ItemGroup>
+    <ClInclude Include="_module.h">
+      <Filter>header</Filter>
+    </ClInclude>
+    <ClInclude Include="_concept.h">
+      <Filter>header</Filter>
+    </ClInclude>
+    <ClInclude Include="CRTP.h">
+      <Filter>header</Filter>
+    </ClInclude>
+    <ClInclude Include="SFINAE.h">
+      <Filter>header</Filter>
+    </ClInclude>
+    <ClInclude Include="type_traits.h">
+      <Filter>header</Filter>
+    </ClInclude>
+    <ClInclude Include="_forward.h">
+      <Filter>header</Filter>
+    </ClInclude>
+    <ClInclude Include="_move.h">
+      <Filter>header</Filter>
+    </ClInclude>
+    <ClInclude Include="default_parameter.h">
+      <Filter>header</Filter>
+    </ClInclude>
+    <ClInclude Include="_invoke.h">
+      <Filter>header</Filter>
+    </ClInclude>
+    <ClInclude Include="_bind.h">
+      <Filter>header</Filter>
+    </ClInclude>
+    <ClInclude Include="member_pointer.h">
+      <Filter>header</Filter>
+    </ClInclude>
+    <ClInclude Include="_lambda.h">
+      <Filter>header</Filter>
+    </ClInclude>
+    <ClInclude Include="user_defined_literals.h">
+      <Filter>header</Filter>
+    </ClInclude>
+    <ClInclude Include="_noexcept.h">
+      <Filter>header</Filter>
+    </ClInclude>
+    <ClInclude Include="_array.h">
+      <Filter>header</Filter>
+    </ClInclude>
+    <ClInclude Include="_decltype.h">
+      <Filter>header</Filter>
+    </ClInclude>
+    <ClInclude Include="_any.h">
+      <Filter>header</Filter>
+    </ClInclude>
+    <ClInclude Include="_range.h">
+      <Filter>header</Filter>
+    </ClInclude>
   </ItemGroup>
 </Project>

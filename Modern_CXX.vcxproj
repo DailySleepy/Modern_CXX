@@ -142,6 +142,26 @@
     <ClCompile Include="module\OtherModule.ixx" />
     <ClCompile Include="module\SubModule.ixx" />
   </ItemGroup>
+  <ItemGroup>
+    <ClInclude Include="default_parameter.h" />
+    <ClInclude Include="_any.h" />
+    <ClInclude Include="_invoke.h" />
+    <ClInclude Include="_bind.h" />
+    <ClInclude Include="member_pointer.h" />
+    <ClInclude Include="_lambda.h" />
+    <ClInclude Include="user_defined_literals.h" />
+    <ClInclude Include="_noexcept.h" />
+    <ClInclude Include="SFINAE.h" />
+    <ClInclude Include="type_traits.h" />
+    <ClInclude Include="_forward.h" />
+    <ClInclude Include="_concept.h" />
+    <ClInclude Include="_module.h" />
+    <ClInclude Include="CRTP.h" />
+    <ClInclude Include="_move.h" />
+    <ClInclude Include="_array.h" />
+    <ClInclude Include="_decltype.h" />
+    <ClInclude Include="_range.h" />
+  </ItemGroup>
   <Import Project="$(VCTargetsPath)\Microsoft.Cpp.targets" />
   <ImportGroup Label="ExtensionTargets">
   </ImportGroup>
