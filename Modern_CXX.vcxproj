@@ -161,6 +161,7 @@
     <ClInclude Include="_array.h" />
     <ClInclude Include="_decltype.h" />
     <ClInclude Include="_range.h" />
+    <ClInclude Include="_variant.h" />
   </ItemGroup>
   <Import Project="$(VCTargetsPath)\Microsoft.Cpp.targets" />
   <ImportGroup Label="ExtensionTargets">

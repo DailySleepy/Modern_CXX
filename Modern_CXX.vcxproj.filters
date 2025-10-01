@@ -75,5 +75,8 @@
     <ClInclude Include="_range.h">
       <Filter>header</Filter>
     </ClInclude>
+    <ClInclude Include="_variant.h">
+      <Filter>header</Filter>
+    </ClInclude>
   </ItemGroup>
 </Project>

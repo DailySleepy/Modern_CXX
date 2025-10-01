@@ -16,8 +16,9 @@
 #include "_module.h"
 #include "_range.h"
 #include "_any.h"
+#include "_variant.h"
 
 int main()
 {
-	_any::main();
+	_variant::main();
 }
